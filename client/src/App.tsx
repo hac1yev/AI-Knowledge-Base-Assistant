@@ -1,7 +1,11 @@
-import ChatBotComponent from "./components/Chatbot/ChatbotComponent";
+import Chatbot from "./components/Chatbot/Chatbot"
 
 const App = () => {
-  return <ChatBotComponent />;
-};
+  return (
+    <div>
+      <Chatbot />
+    </div>
+  )
+}
 
-export default App;
+export default App

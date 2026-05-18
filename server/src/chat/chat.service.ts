@@ -1,40 +1,48 @@
 import { Injectable } from '@nestjs/common';
-import OpenAI from 'openai';
-import { ChatCompletionMessageParam } from 'openai/resources';
+import { ChatOpenAI } from '@langchain/openai';
+import {
+  SystemMessage,
+  HumanMessage,
+  BaseMessage,
+} from '@langchain/core/messages';
+import { extractFileContent } from 'utils/extractFileContent';
+import { ISendMessageType } from './types/chat.types';
 
 @Injectable()
 export class ChatService {
-  private openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
+  private chatModel: ChatOpenAI;
 
-  private messages: ChatCompletionMessageParam[] = [
-    {
-      role: 'system',
-      content: 'You are a helpful chatbot',
-    },
+  private conversationHistory: BaseMessage[] = [
+    new SystemMessage(
+      'You are a helpful assistant that provides information about the knowledge base.',
+    ),
   ];
 
-  async handleMessage(userMessage: string) {
-    console.log(userMessage);
-
-    this.messages.push({
-      role: 'user',
-      content: userMessage,
-    });
-
-    const response = await this.openai.chat.completions.create({
+  constructor() {
+    this.chatModel = new ChatOpenAI({
       model: 'gpt-4o-mini',
-      messages: this.messages,
+      temperature: 0.7,
     });
+  }
 
-    const assistantReply = response.choices[0].message.content;
+  async sendMessage({ content, file}: ISendMessageType) {
+    let fileContent = '';
 
-    this.messages.push({
-      role: 'assistant',
-      content: assistantReply,
-    });
+    if (file) {
+      fileContent = await extractFileContent(file);
+    }
 
-    return assistantReply;
+    const finalPrompt = `
+      User message: ${content}
+      File content: ${fileContent}
+    `;
+    
+    this.conversationHistory.push(new HumanMessage(finalPrompt));
+
+    const response = await this.chatModel.invoke(this.conversationHistory);
+
+    this.conversationHistory.push(response);
+
+    return { content: response.content };
   }
 }
